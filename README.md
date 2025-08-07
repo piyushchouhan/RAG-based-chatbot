@@ -270,7 +270,7 @@ curl -X POST "http://localhost:8000/chat" \
 |-----------|--------|-------------|
 | Document Processing | 10 PDFs (100 pages) | ~30 seconds |
 | Vector Search | Query response | <100ms |
-| LLM Response | GPT-3.5-turbo | 1-3 seconds |
+| LLM Response | gpt-3.5-turbo | 1-3 seconds |
 | End-to-end Query | Complete RAG pipeline | 2-5 seconds |
 
 ### Optimization Tips

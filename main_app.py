@@ -253,11 +253,11 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python main.py chat                    # Start interactive chat
-  python main.py api                     # Start web API server
-  python main.py ingest                  # Ingest documents
-  python main.py ingest --rebuild        # Rebuild index from scratch
-  python main.py test                    # Test the pipeline
+  python main_app.py chat                    # Start interactive chat
+  python main_app.py api                     # Start web API server
+  python main_app.py ingest                  # Ingest documents
+  python main_app.py ingest --rebuild        # Rebuild index from scratch
+  python main_app.py test                    # Test the pipeline
         """
     )
     
