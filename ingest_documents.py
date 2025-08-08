@@ -14,9 +14,6 @@ from pathlib import Path
 
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
-
-from src.document_processor import DocumentProcessor, ProcessingConfig
-from src.vector_store import VectorStoreFactory, VectorStoreConfig
 from src.retriever import create_ingestion_pipeline
 
 # Configure logging

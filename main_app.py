@@ -323,17 +323,19 @@ Examples:
         os.environ['CHUNK_SIZE'] = str(args.chunk_size)
         os.environ['CHUNK_OVERLAP'] = str(args.chunk_overlap)
         
-        # Build arguments for ingest script
+        # Build arguments for ingest script USING its native parameter names
+        # ingest_documents.py expects: --documents-dir, --index-path, --vector-store, --chunk-size, --overlap, --batch-size, --force-rebuild
+        # Previous version passed different flag names causing "unrecognized arguments" error.
         ingest_args = [
-            '--source-dir', args.source,
-            '--output-dir', args.output,
-            '--store-type', args.store_type,
+            '--documents-dir', args.source,
+            '--index-path', args.output,
+            '--vector-store', args.store_type,
             '--chunk-size', str(args.chunk_size),
-            '--chunk-overlap', str(args.chunk_overlap)
+            '--overlap', str(args.chunk_overlap)
         ]
-        
+
         if args.rebuild:
-            ingest_args.append('--rebuild')
+            ingest_args.append('--force-rebuild')
         
         # Run ingestion
         try:
