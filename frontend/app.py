@@ -50,7 +50,6 @@ st.markdown("""
         padding: 20px;
         margin: 10px 0;
         box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
-        backdrop-filter: blur(4px);
         border: 1px solid rgba(255, 255, 255, 0.18);
     }
     
@@ -129,7 +128,7 @@ st.markdown("""
         background: rgba(255, 255, 255, 0.95);
         padding: 20px;
         border-radius: 15px;
-        box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.25);
         margin: 15px 0;
         border: 2px dashed #667eea;
     }
@@ -207,6 +206,18 @@ if "documents" not in st.session_state:
     st.session_state.documents = []
 if "is_typing" not in st.session_state:
     st.session_state.is_typing = False
+if "processing_query" not in st.session_state:
+    st.session_state.processing_query = False
+if "health_status" not in st.session_state:
+    st.session_state.health_status = None
+if "cached_system_status" not in st.session_state:
+    st.session_state.cached_system_status = None
+if "cached_documents" not in st.session_state:
+    st.session_state.cached_documents = None
+if "cached_examples" not in st.session_state:
+    st.session_state.cached_examples = None
+if "page_loaded" not in st.session_state:
+    st.session_state.page_loaded = False
 
 class APIClient:
     """Professional API client for RAG backend communication"""
@@ -350,8 +361,21 @@ def export_conversation():
         mime="application/json"
     )
 
+def load_initial_data():
+    """Load data only on first page load or manual refresh"""
+    if not st.session_state.page_loaded:
+        st.session_state.health_status = api_client.health_check()
+        if st.session_state.health_status:
+            st.session_state.cached_system_status = api_client.get_system_status()
+        st.session_state.cached_documents = api_client.list_documents()
+        st.session_state.cached_examples = api_client.get_query_examples()
+        st.session_state.page_loaded = True
+
 def main():
     """Main application interface"""
+    
+    # Load initial data only on first load
+    load_initial_data()
     
     # Header
     st.markdown("""
@@ -365,8 +389,18 @@ def main():
     with st.sidebar:
         st.markdown("## 🎛️ Control Panel")
         
-        # System status
-        health_status = api_client.health_check()
+        # System status with refresh button
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            st.markdown("### 🔌 Connection Status")
+        with col2:
+            if st.button("🔄", help="Refresh status", key="refresh_status"):
+                # Force refresh by reloading all data
+                st.session_state.page_loaded = False
+                st.rerun()
+        
+        # Get health status from session state
+        health_status = st.session_state.health_status
         if health_status:
             st.success("🟢 API Connected")
         else:
@@ -375,7 +409,7 @@ def main():
         
         # System metrics
         if health_status:
-            system_status = api_client.get_system_status()
+            system_status = st.session_state.cached_system_status
             if system_status:
                 st.markdown("### 📊 System Status")
                 
@@ -439,12 +473,14 @@ def main():
                         st.success(f"✅ {result.get('message', 'Document uploaded successfully!')}")
                         if result.get('chunks_created'):
                             st.info(f"📄 Created {result['chunks_created']} text chunks")
+                        # Force refresh documents list after upload
+                        st.session_state.page_loaded = False
                         st.rerun()
                     else:
                         st.error(f"❌ {result['error']}: {result.get('detail', '')}")
         
         # Document list
-        documents_data = api_client.list_documents()
+        documents_data = st.session_state.cached_documents or {"documents": []}
         documents = documents_data.get('documents', [])
         
         if documents:
@@ -459,7 +495,7 @@ def main():
         st.markdown("---")
         
         # Example queries
-        examples_data = api_client.get_query_examples()
+        examples_data = st.session_state.cached_examples or {"examples": []}
         examples = examples_data.get('examples', [])
         
         if examples:
@@ -544,10 +580,13 @@ def main():
     col1, col2, col3 = st.columns([2, 2, 2])
     
     with col1:
-        send_button = st.button("🚀 Send", type="primary", disabled=not query.strip(), use_container_width=True)
+        # Only disable if actively processing, not based on empty input
+        is_disabled = st.session_state.processing_query or not st.session_state.health_status
+        button_text = "⏳ Processing..." if st.session_state.processing_query else "🚀 Send"
+        send_button = st.button(button_text, type="primary", disabled=is_disabled, use_container_width=True)
     
     with col2:
-        if st.button("🎲 Random Example", use_container_width=True) and examples:
+        if st.button("🎲 Random Example", use_container_width=True, disabled=st.session_state.processing_query) and examples:
             import random
             random_example = random.choice(examples)
             st.session_state.example_query = random_example['query']
@@ -555,9 +594,12 @@ def main():
     
     # Process query
     if send_button and query.strip():
-        if not health_status:
+        if not st.session_state.health_status:
             st.error("❌ Cannot send query: API is not available")
             return
+        
+        # Set processing state
+        st.session_state.processing_query = True
         
         # Check if we should use demo mode
         use_demo_mode = hasattr(st.session_state, 'demo_mode') and st.session_state.demo_mode
@@ -660,9 +702,14 @@ def main():
         if len(st.session_state.messages) > MAX_HISTORY_LENGTH:
             st.session_state.messages = st.session_state.messages[-MAX_HISTORY_LENGTH:]
         
-        # Clear input and rerun
+        # Reset processing state and clear input
+        st.session_state.processing_query = False
         st.session_state.clear_input = True
         st.rerun()
+    
+    # Show helpful message if query is empty
+    elif send_button and not query.strip():
+        st.warning("💭 Please enter a question before sending!")
 
 if __name__ == "__main__":
     main()
